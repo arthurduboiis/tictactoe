@@ -1,0 +1,26 @@
+/* BoardComponent.css */
+
+/* Style du conteneur du tableau */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    width: 18rem;
+    margin: 0 auto;
+}
+
+/* Animation de victoire */
+.animate-won {
+    animation: won 1s infinite alternate;
+}
+
+/* Animation d'égalité */
+.animate-draw {
+    animation: draw 1s infinite linear;
+}
+
+/* Style des cases au survol */
+.grid>div:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s;
+}
