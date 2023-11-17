@@ -2,6 +2,7 @@
   "name": "morpion",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://207.154.213.42:8000",
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",

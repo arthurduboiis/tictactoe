@@ -4,8 +4,11 @@ import "./index.css";
 import reportWebVitals from "./reportWebVitals";
 import Home from "./pages/Home";
 import { UserProvider } from "./context/UserContext";
+import axios from "axios";
 
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+
+axios.defaults.withCredentials = true;
 
 const router = createBrowserRouter([
   {

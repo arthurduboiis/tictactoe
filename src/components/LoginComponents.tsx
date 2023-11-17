@@ -14,35 +14,32 @@ const Login: React.FC<LoginProps> = ({ onClose, onOpenRegister }) => {
 
   const onLogin = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    await axios
-      .get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie")
-      .then((response) => {
-        axios
-          .post(
-            process.env.REACT_APP_API_URL + "api/login",
-            {
-              email: email,
-              password: password,
+    try {
+      await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
+
+      const response = await axios
+        .post(
+          process.env.REACT_APP_API_URL + "api/login",
+          {
+            email: email,
+            password: password,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
             },
-            {
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-              },
-            }
-          )
-          .then((res) => {
-            console.log(res.data);
-            login(res.data.user);
-            onClose();
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+          }
+        )
+      login(response.data.user);
+      onClose();
+    } catch (error) {
+      console.log(error);
+    }
+    
+
+    
+     
   };
 
   return (
