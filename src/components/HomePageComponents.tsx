@@ -64,16 +64,16 @@ function HomePageComponents() {
   //   broadcaster: 'pusher',
   //   key: 'ee4c708e97f16b9f37f2',
   //   cluster: 'eu',
-  //   forceTLS: config.pusher.tls,
+  //   forceTLS: false,
   //   //authEndpoint is your apiUrl + /broadcasting/auth
-  //   authEndpoint: config.pusher.authEndpoint, 
+  //   authEndpoint: '/sanctum/csrf-cookie', 
   //   // As I'm using JWT tokens, I need to manually set up the headers.
-  //   auth: {
-  //     headers: {
-  //       Authorization: `Bearer ${token}`,
-  //       Accept: 'application/json',
-  //     },
-  //   },
+  //   // auth: {
+  //   //   headers: {
+  //   //     Authorization: `Bearer ${token}`,
+  //   //     Accept: 'application/json',
+  //   //   },
+  //   // },
   // };
   
   // const echo = new Echo(options);

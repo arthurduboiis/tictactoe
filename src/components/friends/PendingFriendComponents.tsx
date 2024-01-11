@@ -12,10 +12,9 @@ const PendingFriendComponents: React.FC<PendingFriendProps> = ({ pendingFriends 
     username: string
   ) => {
     event.preventDefault();
-    await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
     axios
       .post(
-        process.env.REACT_APP_API_URL + "api/accept-friend",
+        process.env.REACT_APP_API_URL + "accept-friend",
         {
           username: username,
         },
@@ -40,10 +39,9 @@ const PendingFriendComponents: React.FC<PendingFriendProps> = ({ pendingFriends 
     username: string
   ) => {
     event.preventDefault();
-    await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
     axios
       .post(
-        process.env.REACT_APP_API_URL + "api/reject-friend",
+        process.env.REACT_APP_API_URL + "reject-friend",
         {
           username: username,
         },
