@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "../components/HeaderComponents";
 import HomePageComponents from "../components/HomePageComponents";
 import Login from "../components/LoginComponents";
@@ -9,6 +9,13 @@ const Home: React.FC = () => {
   const [showLogin, setShowLogin] = useState(true);
   const [showRegister, setShowRegister] = useState(false);
   const { user, logout } = useUser();
+
+  useEffect(() => {
+    if (user) {
+      setShowLogin(false);
+      setShowRegister(false);
+    }
+  }, [user]);
 
   const handleLoginClick = () => {
     setShowLogin(true);
@@ -33,6 +40,8 @@ const Home: React.FC = () => {
       <Header
         onLoginClick={handleLoginClick}
         onRegisterClick={handleRegisterClick}
+        loggedIn={user ? true : false}
+        logout={logout}
       />
       <h1 className="text-3xl font-bold text-center mb-4">Jeu de morpion</h1>
 
@@ -40,12 +49,7 @@ const Home: React.FC = () => {
         <div className="flex flex-col items-center h-screen">
             <span> Welcome { user.username}</span>
           <HomePageComponents />
-          <button
-            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-            onClick={logout}
-          >
-            Logout
-          </button>
+          
         </div>
       )}
       {showLogin && (

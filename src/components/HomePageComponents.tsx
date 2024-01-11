@@ -1,6 +1,32 @@
 import React, { useState } from "react";
 import BoardComponent from "./BoardComponents";
 import FriendRequestComponents from "./FriendRequestComponents";
+import FriendListComponents from "./friends/FriendListComponents";
+import axios from 'axios';
+
+import Echo from "laravel-echo";
+
+const options = {
+  broadcaster: 'pusher',
+  key: config.pusher.key,
+  cluster: config.pusher.cluster,
+  forceTLS: config.pusher.tls,
+  //authEndpoint is your apiUrl + /broadcasting/auth
+  authEndpoint: config.pusher.authEndpoint, 
+  // As I'm using JWT tokens, I need to manually set up the headers.
+  auth: {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+  },
+};
+
+const echo = new Echo(options);
+echo.private(`App.User.${userId}`).notification((data) => {
+    console.log(data);
+});
+
 
 function HomePageComponents() {
   const [Squares, setSquares] = useState<(string | null)[]>(
@@ -8,11 +34,22 @@ function HomePageComponents() {
   );
   const [xIsNext, setXIsNext] = useState(true);
   const [showAddFriend, setShowAddFriend] = useState(false);
+  const [showFriendList, setShowFriendList] = useState(false);
+
   const handleFriendRequestOpen = () => {
     setShowAddFriend(true);
   };
   const handleFriendRequestClose = () => {
     setShowAddFriend(false);
+  };
+
+
+  const handleFriendListOpen =  () => {
+   
+    setShowFriendList(true);
+  };
+  const handleFriendListClose = () => {
+    setShowFriendList(false);
   };
 
   const handleClick = (i: number) => {
@@ -35,10 +72,18 @@ function HomePageComponents() {
   } else {
     status = "Joueur: " + (xIsNext ? "X" : "O"); // xIsNext est à utiliser pour déterminer quel joueur doit jouer
   }
+  window.Echo = new Echo({
+    broadcaster: 'pusher',
+    key: process.env.MIX_PUSHER_APP_KEY,
+    cluster: process.env.MIX_PUSHER_APP_CLUSTER,
+    encrypted: true, // set to true if you're using HTTPS
+  });
+
 
   return (
-    <div className="flex flex-raw items-center">
-      <div className="text-center mt-10">
+    <div className=" flex flex-raw items-center justify-center bg-gray-100 p-5 mt-5 shadow-xl rounded-xl">
+      <div className="self-stretch shrink"></div>
+      <div className="text-center">
         <div className="text-3xl mb-4">{status}</div>
         <BoardComponent
           Squares={Squares}
@@ -48,16 +93,25 @@ function HomePageComponents() {
           gameMode={""}
         />
       </div>
-      <div className="text-center ml-5">
+      <div className="flex flex-col text-center ml-5 gap-2">
         <button
-          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded mt-10"
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
           onClick={handleFriendRequestOpen}
         >
           Ajouter un ami
         </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={handleFriendListOpen}
+        >
+          Liste d'amis
+        </button>
       </div>
       {showAddFriend && (
         <FriendRequestComponents onClose={handleFriendRequestClose} />
+      )}
+      {showFriendList && (
+        <FriendListComponents onClose={handleFriendListClose} />
       )}
     </div>
   );
