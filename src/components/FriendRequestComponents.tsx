@@ -15,7 +15,6 @@ const FriendRequestComponents: React.FC<FriendRequestProps> = ({ onClose }) => {
 
   const handleSubmit = async (event: React.FormEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
     axios
       .post(
         process.env.REACT_APP_API_URL + "api/add-friend",

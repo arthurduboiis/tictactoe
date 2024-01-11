@@ -15,7 +15,7 @@ const Login: React.FC<LoginProps> = ({ onClose, onOpenRegister }) => {
   const onLogin = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
     try {
-      await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
+   
 
       const response = await axios
         .post(
@@ -32,6 +32,7 @@ const Login: React.FC<LoginProps> = ({ onClose, onOpenRegister }) => {
           }
         )
       login(response.data.user);
+      //await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
       onClose();
     } catch (error) {
       console.log(error);
