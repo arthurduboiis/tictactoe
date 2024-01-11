@@ -1,17 +1,24 @@
 import React, { useState } from "react";
 import BoardComponent from "./BoardComponents";
+import BoutonRejouer from "./BoutonRejouer";
 
 function HomePageComponents() {
     const [Squares, setSquares] = useState<(string | null)[]>(Array(9).fill(null));
     const [xIsNext, setXIsNext] = useState(true);
 
-    const handleClick = (i: number) => { //Fonction fait avec copilote, vérifier si elle fonctionne et voir la doc pour le Squares
+    const handleClick = (i: number) => {
         const newSquares = Squares.slice();
         if (calculateWinner(newSquares) || newSquares[i]) return;
         newSquares[i] = xIsNext ? "X" : "O";
         setSquares(newSquares);
         setXIsNext(!xIsNext);
     }
+
+    const handleRejouer = () => {
+        setSquares(Array(9).fill(null));
+        setXIsNext(true);
+    };
+
 
     const winner = calculateWinner(Squares); // Cette variable est à utiliser pour déterminer si le jeu est gagné
     let status;
@@ -23,6 +30,9 @@ function HomePageComponents() {
         status = "Joueur: " + (xIsNext ? "X" : "O"); // xIsNext est à utiliser pour déterminer quel joueur doit jouer
     }
 
+    const showRejouerButton = winner || Squares.every((square) => square !== null);
+
+
     return (
         <div className="text-center mt-10">
             <div className="text-3xl mb-4">{status}</div>
@@ -32,11 +42,15 @@ function HomePageComponents() {
                 isGameWon={false}
                 isGameDraw={false}
                 gameMode={""} />
+            {showRejouerButton && <BoutonRejouer onRejouer={handleRejouer} />}
+
         </div>
     );
 }
 
-function calculateWinner(Squares: (string | null)[]) { // Fait avec chatGPT pour calculer les coups gagnants.
+
+
+function calculateWinner(Squares: (string | null)[]) {
     const lines: number[][] = [
         [0, 1, 2],
         [3, 4, 5],
@@ -58,5 +72,3 @@ function calculateWinner(Squares: (string | null)[]) { // Fait avec chatGPT pour
 
 export default HomePageComponents;
 
-// Changer le nom de cette page plus tard lorsque le login et register seront fait pour pouvoir afficher le login en premier lorsqu'on arrive sur le site.
-// Ca peut etre chiant de se login a chaque fois que j'actualise, attendre que les cookies ou tokens sont aussi implementer
