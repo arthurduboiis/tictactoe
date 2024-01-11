@@ -20,53 +20,62 @@ const FriendRequestComponents: React.FC<FriendRequestProps> = ({ onClose }) => {
   const [friends, setFriendList] = React.useState<User[]>([]);
 
   const getFriend = async () => {
-    const result = await axios.get(
-      process.env.REACT_APP_API_URL + "api/get-friend",
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      }
-    );
-    console.log(result.data.friends)
-    setFriendList(result.data.friends);
+    await axios
+      .get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie")
+      .then(async (response) => {
+        const result = await axios.get(
+          process.env.REACT_APP_API_URL + "api/get-friend",
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+          }
+        );
 
-  }
+        setFriendList(result.data.friends);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  };
 
   const getPendingFriend = async () => {
-    const result = await axios.get(
-      process.env.REACT_APP_API_URL + "api/pending-friend",
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      }
-    );
-    console.log(result.data.pending_friend)
-    setPendingFriendsList(result.data.pending_friend);
-  }
+    await axios
+      .get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie")
+      .then(async (response) => {
+        const result = await axios.get(
+          process.env.REACT_APP_API_URL + "api/pending-friend",
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+          }
+        );
+        console.log(result.data.pending_friend);
+        setPendingFriendsList(result.data.pending_friend);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  };
 
   React.useEffect(() => {
-     
     try {
       if (activeTab === Tab.FRIENDS) {
         console.log("get friend");
         getFriend();
-      }
-      else {
+      } else {
         console.log("get pending friend");
         getPendingFriend();
       }
-    
     } catch (error) {
       console.log(error);
     }
-  } , [activeTab]);
- 
-  const handleTabChange =  (tab: Tab) => {
-   
+  }, [activeTab]);
+
+  const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
   };
 
@@ -91,7 +100,6 @@ const FriendRequestComponents: React.FC<FriendRequestProps> = ({ onClose }) => {
         </div>
         {/* to put the line in dark */}
         <hr className="mb-4 border-black" />
-
 
         {activeTab === Tab.FRIENDS && <FriendsComponents friends={friends} />}
         {activeTab === Tab.PENDING_FRIENDS && (
