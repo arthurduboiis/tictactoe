@@ -3,9 +3,16 @@ import BoardComponent from "./BoardComponents";
 import FriendRequestComponents from "./FriendRequestComponents";
 import FriendListComponents from "./friends/FriendListComponents";
 import axios from 'axios';
-
 import Echo from "laravel-echo";
+import Pusher from "pusher-js";
+import { join } from "path";
 
+declare global {
+  interface Window {
+    Echo: Echo;
+    Pusher: any;
+  }
+}
 
 
 
@@ -42,6 +49,49 @@ function HomePageComponents() {
     setXIsNext(!xIsNext);
   };
 
+  const createGame = async () => {
+    try {
+      const response = await axios.post(
+        process.env.REACT_APP_API_URL + "api/game/create",
+        {
+          squares: Squares,
+          xIsNext: xIsNext,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+      console.log(response);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  const joinGame = async () => {
+    try {
+      const response = await axios.post(
+        process.env.REACT_APP_API_URL + "api/game/join",
+        {
+          squares: Squares,
+          xIsNext: xIsNext,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+      console.log(response);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  
   const winner = calculateWinner(Squares); // Cette variable est à utiliser pour déterminer si le jeu est gagné
   let status;
   if (winner) {
@@ -53,12 +103,21 @@ function HomePageComponents() {
   } else {
     status = "Joueur: " + (xIsNext ? "X" : "O"); // xIsNext est à utiliser pour déterminer quel joueur doit jouer
   }
-  // window.Echo = new Echo({
-  //   broadcaster: 'pusher',
-  //   key: process.env.MIX_PUSHER_APP_KEY,
-  //   cluster: process.env.MIX_PUSHER_APP_CLUSTER,
-  //   encrypted: true, // set to true if you're using HTTPS
-  // });
+  const token = localStorage.getItem('token');
+  var pusher = new Pusher(process.env.REACT_APP_PUSHER_KEY || "", {
+    cluster: process.env.REACT_APP_PUSHER_CLUSTER || "eu",
+  });
+
+
+  window.Echo = new Echo({
+    broadcaster: 'pusher',
+    key: process.env.REACT_APP_PUSHER_KEY,
+    cluster: process.env.REACT_APP_PUSHER_CLUSTER,
+    forceTLS: true,
+  });
+
+  var channel = pusher.subscribe(`App.User.${1}`);
+
 
   // const options = {
   //   broadcaster: 'pusher',
@@ -108,6 +167,19 @@ function HomePageComponents() {
         >
           Liste d'amis
         </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={createGame}
+        >
+          Créer une partie
+
+        </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={joinGame}
+        >
+          Rejoindre une partie
+        </button>
       </div>
       {showAddFriend && (
         <FriendRequestComponents onClose={handleFriendRequestClose} />
@@ -141,6 +213,3 @@ function calculateWinner(Squares: (string | null)[]) {
 }
 
 export default HomePageComponents;
-
-// Changer le nom de cette page plus tard lorsque le login et register seront fait pour pouvoir afficher le login en premier lorsqu'on arrive sur le site.
-// Ca peut etre chiant de se login a chaque fois que j'actualise, attendre que les cookies ou tokens sont aussi implementer

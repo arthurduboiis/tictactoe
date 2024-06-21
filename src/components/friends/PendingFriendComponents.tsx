@@ -14,7 +14,7 @@ const PendingFriendComponents: React.FC<PendingFriendProps> = ({ pendingFriends 
     event.preventDefault();
     axios
       .post(
-        process.env.REACT_APP_API_URL + "accept-friend",
+        process.env.REACT_APP_API_URL + "api/accept-friend",
         {
           username: username,
         },
