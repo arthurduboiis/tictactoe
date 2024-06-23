@@ -32,6 +32,7 @@ const Login: React.FC<LoginProps> = ({ onClose, onOpenRegister }) => {
           }
         )
       login(response.data.user);
+      localStorage.setItem("token", response.data.token);
       //await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
       onClose();
     } catch (error) {

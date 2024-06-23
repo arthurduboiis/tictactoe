@@ -1,21 +1,36 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import BoardComponent from "./BoardComponents";
 import FriendRequestComponents from "./FriendRequestComponents";
 import FriendListComponents from "./friends/FriendListComponents";
-import axios from 'axios';
-
+import axios from "axios";
 import Echo from "laravel-echo";
+import Pusher from "pusher-js";
+import { join } from "path";
+import { useUser } from "../context/UserContext";
+import JoinGameModal from "./JoinGameModal";
 
+declare global {
+  interface Window {
+    Echo: Echo;
+    Pusher: any;
+  }
+}
 
-
-
-function HomePageComponents() {
+const HomePageComponents = () => {
   const [Squares, setSquares] = useState<(string | null)[]>(
     Array(9).fill(null)
   );
+  const { user } = useUser();
   const [xIsNext, setXIsNext] = useState(true);
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [showFriendList, setShowFriendList] = useState(false);
+  const [gameCode, setGameCode] = useState("");
+  const [isGameModal, setIsGameModal] = useState(false);
+  const [currentPlayer, setCurrentPlayer] = useState("");
+  const [playerX, setPlayerX] = useState("");
+  const [playerO, setPlayerO] = useState("");
+  const [gameCanBeLaunch, setGameCanBeLaunch] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
 
   const handleFriendRequestOpen = () => {
     setShowAddFriend(true);
@@ -24,63 +39,182 @@ function HomePageComponents() {
     setShowAddFriend(false);
   };
 
-
-  const handleFriendListOpen =  () => {
-   
+  const handleFriendListOpen = () => {
     setShowFriendList(true);
   };
   const handleFriendListClose = () => {
     setShowFriendList(false);
   };
 
+  const showGameModal = () => {
+    setIsGameModal(true);
+  };
+  const closeGameModal = () => {
+    setIsGameModal(false);
+  };
+
+  // useEffect(() => {
+  //   if (user.user === null) return;
+
+  // }, [user.user]);
+
   const handleClick = (i: number) => {
-    //Fonction fait avec copilote, vérifier si elle fonctionne et voir la doc pour le Squares
+    if (!user || !gameStarted) return;
     const newSquares = Squares.slice();
-    if (calculateWinner(newSquares) || newSquares[i]) return;
+    if (
+      calculateWinner(newSquares) ||
+      newSquares[i] ||
+      user.username !== currentPlayer
+    )
+      return;
     newSquares[i] = xIsNext ? "X" : "O";
     setSquares(newSquares);
     setXIsNext(!xIsNext);
+    console.log(currentPlayer)
+    axios.post(process.env.REACT_APP_API_URL + "api/make-move", {
+      gameCode: gameCode,
+      squares: newSquares,
+      xIsNext: !xIsNext,
+      currentPlayer: user.username === playerX ? playerO : playerX,
+    });
+
+    setCurrentPlayer(user.username === playerX ? playerO : playerX);
   };
 
-  const winner = calculateWinner(Squares); // Cette variable est à utiliser pour déterminer si le jeu est gagné
+  useEffect(() => {
+    if (window.Echo && gameCode !== "") {
+      window.Echo.channel("tictactoe." + gameCode)
+        .listen("UserJoined", (e: string) => {
+          setGameCanBeLaunch(true);
+        })
+        .listen("UserMove", (e: any) => {
+          setSquares(e.squares);
+          setXIsNext(e.xIsNext);
+          setCurrentPlayer(e.currentPlayer);
+        })
+        .listen("GameReady", (e: any) => {
+          console.log("GameReady event received:", e);
+          setPlayerX(e.playerX);
+          setPlayerO(e.playerO);
+          setCurrentPlayer(e.playerX); // Le joueur X commence le jeu
+          setGameStarted(true);
+        });
+    }
+  }, [gameCode]);
+
+  const createGame = async () => {
+    try {
+      const response = await axios.post(
+        process.env.REACT_APP_API_URL + "api/create-game",
+        {
+          user: user,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (response.status === 201 && user) {
+        const gameCode = response.data.gameCode;
+        setupPusher(gameCode);
+
+        setGameCode(gameCode);
+        setPlayerX(user.username);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const joinGame = async (gameCodeJoin: string) => {
+    try {
+      const response = await axios.post(
+        process.env.REACT_APP_API_URL + "api/join-game",
+        {
+          gameCode: gameCodeJoin,
+          user: user,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+      if (response.status === 200 && user) {
+        setGameCode(gameCodeJoin);
+        setPlayerO(user.username);
+        await setupPusher(gameCodeJoin);
+      } else {
+        alert("Code de la partie invalide");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const startGame = async () => {
+    try {
+      const response = await axios.post(
+        process.env.REACT_APP_API_URL + "api/start-game",
+        {
+          gameCode: gameCode,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+      if (response.status === 200) {
+        setGameStarted(true);
+        setGameCanBeLaunch(false);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const setupPusher = async (gameCode: string) => {
+    if (!window.Echo) {
+      var pusher = new Pusher(process.env.REACT_APP_PUSHER_KEY || "", {
+        cluster: process.env.REACT_APP_PUSHER_CLUSTER || "eu",
+      });
+
+      window.Echo = new Echo({
+        broadcaster: "pusher",
+        key: process.env.REACT_APP_PUSHER_KEY,
+        cluster: process.env.REACT_APP_PUSHER_CLUSTER,
+        forceTLS: true,
+      });
+    }
+
+    window.Echo.join(`tictactoe.${gameCode}`)
+      .listen("UserJoined", (e: string) => {
+        console.log(e);
+      })
+      .listen("UserLeaved", (e: string) => {
+        console.log(e);
+      });
+  };
+
+  const winner = calculateWinner(Squares);
   let status;
   if (winner) {
-    // Cette condition sert a montrer le status du jeu
-    status = "Winner: " + winner;
+    if (winner === "X") {
+      status = "Winner: " + playerX;
+    } else {
+      status = "Winner: " + playerO;
+    }
   } else if (Squares.every((square) => square !== null)) {
-    // Voir le Squares.every sur la doc
     status = "Egalité";
   } else {
-    status = "Joueur: " + (xIsNext ? "X" : "O"); // xIsNext est à utiliser pour déterminer quel joueur doit jouer
+    status = "Joueur: " + (xIsNext ? playerX : playerO);
   }
-  // window.Echo = new Echo({
-  //   broadcaster: 'pusher',
-  //   key: process.env.MIX_PUSHER_APP_KEY,
-  //   cluster: process.env.MIX_PUSHER_APP_CLUSTER,
-  //   encrypted: true, // set to true if you're using HTTPS
-  // });
-
-  // const options = {
-  //   broadcaster: 'pusher',
-  //   key: 'ee4c708e97f16b9f37f2',
-  //   cluster: 'eu',
-  //   forceTLS: false,
-  //   //authEndpoint is your apiUrl + /broadcasting/auth
-  //   authEndpoint: '/sanctum/csrf-cookie', 
-  //   // As I'm using JWT tokens, I need to manually set up the headers.
-  //   // auth: {
-  //   //   headers: {
-  //   //     Authorization: `Bearer ${token}`,
-  //   //     Accept: 'application/json',
-  //   //   },
-  //   // },
-  // };
-  
-  // const echo = new Echo(options);
-  // echo.private(`App.User.${userId}`).notification((data) => {
-  //     console.log(data);
-  // });
-
 
   return (
     <div className=" flex flex-raw items-center justify-center bg-gray-100 p-5 mt-5 shadow-xl rounded-xl">
@@ -108,6 +242,27 @@ function HomePageComponents() {
         >
           Liste d'amis
         </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={createGame}
+        >
+          Créer une partie
+        </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={showGameModal}
+        >
+          Rejoindre une partie
+        </button>
+        {gameCode !== "" && <div>Code de la partie: {gameCode}</div>}
+        {gameCanBeLaunch && (
+          <button
+            className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+            onClick={startGame}
+          >
+            Lancé la partie
+          </button>
+        )}
       </div>
       {showAddFriend && (
         <FriendRequestComponents onClose={handleFriendRequestClose} />
@@ -115,9 +270,12 @@ function HomePageComponents() {
       {showFriendList && (
         <FriendListComponents onClose={handleFriendListClose} />
       )}
+      {isGameModal && (
+        <JoinGameModal onClose={closeGameModal} joinGame={joinGame} />
+      )}
     </div>
   );
-}
+};
 
 function calculateWinner(Squares: (string | null)[]) {
   // Fait avec chatGPT pour calculer les coups gagnants.
@@ -141,6 +299,3 @@ function calculateWinner(Squares: (string | null)[]) {
 }
 
 export default HomePageComponents;
-
-// Changer le nom de cette page plus tard lorsque le login et register seront fait pour pouvoir afficher le login en premier lorsqu'on arrive sur le site.
-// Ca peut etre chiant de se login a chaque fois que j'actualise, attendre que les cookies ou tokens sont aussi implementer
