@@ -66,7 +66,7 @@ const PendingFriendComponents: React.FC<PendingFriendProps> = ({ pendingFriends 
      
 
       {pendingFriends ? pendingFriends.map((friend) => (
-        <div key={friend.id} className="flex items-start justify-center gap-2">
+        <div key={friend.userID} className="flex items-start justify-center gap-2">
           <span className="grow shrink-0">{friend.username}</span>
           <button
             type="button"

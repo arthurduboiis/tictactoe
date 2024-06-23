@@ -6,44 +6,11 @@ import { useUser } from "../context/UserContext";
 
 interface JoinGameModalProps {
   onClose: () => void;
+  joinGame: (gameCode: string) => void;
 }
 
-const JoinGameModal: React.FC<JoinGameModalProps> = ({ onClose }) => {
-  const [gameCode, setGameCode] = React.useState("");
-  const user = useUser();
-
-
-  const joinGame = async (event: React.FormEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    try {
-      const response = await axios.post(
-        process.env.REACT_APP_API_URL + "api/join-game",
-        {
-          gameCode: gameCode,
-          user: user,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        }
-      );
-      console.log(response);
-      var pusher = new Pusher(process.env.REACT_APP_PUSHER_KEY || "", {
-        cluster: process.env.REACT_APP_PUSHER_CLUSTER || "eu",
-      });
-
-      window.Echo = new Echo({
-        broadcaster: "pusher",
-        key: process.env.REACT_APP_PUSHER_KEY,
-        cluster: process.env.REACT_APP_PUSHER_CLUSTER,
-        forceTLS: true,
-      });
-    } catch (error) {
-      console.log(error);
-    }
-  };
+const JoinGameModal: React.FC<JoinGameModalProps> = ({ onClose, joinGame }) => {
+  const [gameCode, setInputGameCode] = React.useState("");
 
   return (
     <div>
@@ -55,12 +22,16 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ onClose }) => {
               type="text"
               placeholder="Code de la partie"
               value={gameCode}
-              onChange={(e) => setGameCode(e.target.value)}
+              onChange={(e) => setInputGameCode(e.target.value)}
               className="border border-gray-400 rounded-md px-3 py-2 mb-2"
             />
             <button
               className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
-              onClick={joinGame}
+              onClick={(e) => {
+                e.preventDefault();
+                joinGame(gameCode);
+                onClose();
+              }}
             >
               Rejoindre
             </button>

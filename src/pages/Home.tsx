@@ -4,18 +4,38 @@ import HomePageComponents from "../components/HomePageComponents";
 import Login from "../components/LoginComponents";
 import Register from "../components/RegisterComponents";
 import { useUser } from "../context/UserContext";
+import axios from "axios";
 
 const Home: React.FC = () => {
   const [showLogin, setShowLogin] = useState(true);
   const [showRegister, setShowRegister] = useState(false);
-  const { user, logout } = useUser();
+  const { user, logout, login } = useUser();
 
   useEffect(() => {
     if (user) {
       setShowLogin(false);
       setShowRegister(false);
+    } else {
+      setShowLogin(true);
     }
   }, [user]);
+
+  useEffect(() => {
+    axios
+      .get(process.env.REACT_APP_API_URL + "api/validate-session", {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("token"),
+        },
+      })
+      .then((response) => {
+        if (response.status === 200) {
+          login(response.data.user);
+        }
+        else {
+          logout();
+        }
+      });
+  }, []);
 
   const handleLoginClick = () => {
     setShowLogin(true);
@@ -47,9 +67,8 @@ const Home: React.FC = () => {
 
       {user && (
         <div className="flex flex-col items-center h-screen">
-            <span> Welcome { user.username}</span>
+          <span> Welcome {user.username}</span>
           <HomePageComponents />
-          
         </div>
       )}
       {showLogin && (
