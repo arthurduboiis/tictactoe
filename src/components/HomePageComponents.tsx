@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import BoardComponent from "./BoardComponents";
 import FriendRequestComponents from "./FriendRequestComponents";
 import FriendListComponents from "./friends/FriendListComponents";
+import RankingComponent from "./RankingComponent";
 import axios from "axios";
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
-import { join } from "path";
 import { useUser } from "../context/UserContext";
 import JoinGameModal from "./JoinGameModal";
 
@@ -17,9 +17,9 @@ declare global {
 }
 
 const HomePageComponents = () => {
-  const [Squares, setSquares] = useState<(string | null)[]>(
-    Array(9).fill(null)
-  );
+  const [Squares, setSquares] = useState<(string | null)[]>(Array(9).fill(null));
+  const [gameEnded, setGameEnded] = useState(false);
+  const [gameStatusMessage, setGameStatusMessage] = useState<string | null>(null); 
   const { user } = useUser();
   const [xIsNext, setXIsNext] = useState(true);
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -31,6 +31,7 @@ const HomePageComponents = () => {
   const [playerO, setPlayerO] = useState("");
   const [gameCanBeLaunch, setGameCanBeLaunch] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [showRanking, setShowRanking] = useState(false);
 
   const handleFriendRequestOpen = () => {
     setShowAddFriend(true);
@@ -202,25 +203,48 @@ const HomePageComponents = () => {
       });
   };
 
-  const winner = calculateWinner(Squares);
-  let status;
-  if (winner) {
-    if (winner === "X") {
-      status = "Winner: " + playerX;
-    } else {
-      status = "Winner: " + playerO;
+  const updateRanking = useCallback((winner: string, loser: string, isDraw: boolean) => {
+    if (!gameEnded) {
+      setGameEnded(true); 
+      axios.post(process.env.REACT_APP_API_URL + "api/end-game", {
+        winner: winner,
+        loser: loser,
+        isDraw: isDraw,
+      })
+      .then(response => {
+        console.log('Ranking updated successfully');
+      })
+      .catch(error => {
+        console.error('There was an error updating the ranking!', error.response?.data || error.message);
+      });
     }
-  } else if (Squares.every((square) => square !== null)) {
-    status = "Egalité";
-  } else {
-    status = "Joueur: " + (xIsNext ? playerX : playerO);
-  }
+  }, [gameEnded]);
+
+  useEffect(() => {
+    const winner = calculateWinner(Squares);
+    let gameStatus: string; 
+    if (winner) {
+      if (winner === "X") {
+        gameStatus = "Winner: " + playerX;
+        updateRanking(playerX, playerO, false);
+      } else {
+        gameStatus = "Winner: " + playerO;
+        updateRanking(playerO, playerX, false);
+      }
+    } else if (Squares.every((square) => square !== null)) {
+      gameStatus = "Egalité";
+      updateRanking(playerX, playerO, true);
+    } else {
+      gameStatus = "Joueur: " + (xIsNext ? playerX : playerO);
+    }
+    setGameStatusMessage(gameStatus);
+  }, [Squares, playerX, playerO, xIsNext, updateRanking]);
 
   return (
     <div className=" flex flex-raw items-center justify-center bg-gray-100 p-5 mt-5 shadow-xl rounded-xl">
       <div className="self-stretch shrink"></div>
       <div className="text-center">
-        <div className="text-3xl mb-4">{status}</div>
+        <div className="text-3xl mb-4">{gameStatusMessage}</div>
         <BoardComponent
           Squares={Squares}
           onClick={handleClick}
@@ -228,51 +252,65 @@ const HomePageComponents = () => {
           isGameDraw={false}
           gameMode={""}
         />
-      </div>
-      <div className="flex flex-col text-center ml-5 gap-2">
-        <button
-          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
-          onClick={handleFriendRequestOpen}
-        >
-          Ajouter un ami
-        </button>
-        <button
-          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
-          onClick={handleFriendListOpen}
-        >
-          Liste d'amis
-        </button>
-        <button
-          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
-          onClick={createGame}
-        >
-          Créer une partie
-        </button>
-        <button
-          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
-          onClick={showGameModal}
-        >
-          Rejoindre une partie
-        </button>
-        {gameCode !== "" && <div>Code de la partie: {gameCode}</div>}
-        {gameCanBeLaunch && (
+        </div>
+        <div className="flex flex-col text-center ml-5 gap-2">
           <button
             className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
-            onClick={startGame}
+            onClick={handleFriendRequestOpen}
           >
-            Lancé la partie
+            Ajouter un ami
           </button>
+          <button
+            className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+            onClick={handleFriendListOpen}
+          >
+            Liste d'amis
+          </button>
+          <button
+            className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+            onClick={createGame}
+          >
+            Créer une partie
+          </button>
+          <button
+            className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+            onClick={showGameModal}
+          >
+            Rejoindre une partie
+          </button>
+          {gameCode !== "" && <div>Code de la partie: {gameCode}</div>}
+          {gameCanBeLaunch && (
+            <button
+              className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+              onClick={startGame}
+            >
+              Lancé la partie
+            </button>
+          )}
+          <div className="text-center">
+            <button
+              className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+              onClick={() => setShowRanking(!showRanking)}
+            >
+              {showRanking ? "Masquer le classement" : "Afficher le classement"}
+            </button>
+          </div>
+        </div>
+      
+
+      {/* Section droite : Classement */}
+      <div className="flex flex-col gap-4">
+        {showRanking && <RankingComponent />} {/* Afficher le composant de classement si showRanking est vrai */}
+        {showAddFriend && (
+          <FriendRequestComponents onClose={handleFriendRequestClose} />
+        )}
+        {showFriendList && (
+          <FriendListComponents onClose={handleFriendListClose} />
+        )}
+        {isGameModal && (
+          <JoinGameModal onClose={closeGameModal} joinGame={joinGame} />
         )}
       </div>
-      {showAddFriend && (
-        <FriendRequestComponents onClose={handleFriendRequestClose} />
-      )}
-      {showFriendList && (
-        <FriendListComponents onClose={handleFriendListClose} />
-      )}
-      {isGameModal && (
-        <JoinGameModal onClose={closeGameModal} joinGame={joinGame} />
-      )}
     </div>
   );
 };
