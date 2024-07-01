@@ -31,7 +31,7 @@ const Home: React.FC = () => {
             headers: {
               Authorization: "Bearer " + localStorage.getItem("token"),
             },
-            withCredentials: true, // Assurez-vous que les cookies sont envoyés avec la requête
+            withCredentials: true,
           }
         );
 

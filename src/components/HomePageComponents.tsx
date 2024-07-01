@@ -5,7 +5,6 @@ import FriendListComponents from "./friends/FriendListComponents";
 import axios from "axios";
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
-import { join } from "path";
 import { useUser } from "../context/UserContext";
 import JoinGameModal from "./JoinGameModal";
 
@@ -29,7 +28,8 @@ const HomePageComponents = () => {
   const [playerO, setPlayerO] = useState("");
   const [gameCanBeLaunch, setGameCanBeLaunch] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
-  const [isLocalGame, setIsLocalGame] = useState(true); // ajout pour le mode local
+  const [isLocalGame, setIsLocalGame] = useState(true);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | null>(null);
 
   const handleFriendRequestOpen = () => {
     setShowAddFriend(true);
@@ -53,8 +53,7 @@ const HomePageComponents = () => {
   };
 
   const handleClick = (i: number) => {
-    if (!isLocalGame && (!user || !gameStarted)) return; // Vérifier si le jeu est en ligne ou local
-
+    if (!isLocalGame && (!user || !gameStarted)) return;
     const newSquares = Squares.slice();
     if (calculateWinner(newSquares) || newSquares[i]) return;
 
@@ -70,7 +69,93 @@ const HomePageComponents = () => {
         currentPlayer: user.username === playerX ? playerO : playerX,
       });
       setCurrentPlayer(user.username === playerX ? playerO : playerX);
+    } else if (isLocalGame && difficulty) {
+      // CA permet de retarder le coup de l'ordi, peux être réduire un peu si c'est trop long,ca me parrait correcte pour l'instant.
+      setTimeout(() => makeComputerMove(newSquares), 500);
     }
+  };
+
+  const makeComputerMove = (squares: (string | null)[]) => {
+    let move;
+    if (difficulty === "easy") {
+      move = getRandomMove(squares);
+    } else if (difficulty === "medium") {
+      move = getMediumMove(squares);
+    } else if (difficulty === "hard") {
+      move = getBestMove(squares, false);
+    }
+
+    if (move !== null && move !== undefined) {
+      squares[move] = "O";
+      setSquares(squares);
+      setXIsNext(true);
+    }
+
+  };
+
+  const getRandomMove = (squares: (string | null)[]) => {
+    const emptySquares = squares
+      .map((square, index) => (square === null ? index : null))
+      .filter((index) => index !== null);
+    return emptySquares[Math.floor(Math.random() * emptySquares.length)];
+  };
+
+  const getMediumMove = (squares: (string | null)[]) => {
+    const lines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+
+    for (let line of lines) {
+      const [a, b, c] = line;
+      if (squares[a] && squares[a] === squares[b] && squares[c] === null) return c;
+      if (squares[a] && squares[a] === squares[c] && squares[b] === null) return b;
+      if (squares[b] && squares[b] === squares[c] && squares[a] === null) return a;
+    }
+
+    return getRandomMove(squares);
+  };
+
+  const getBestMove = (squares: (string | null)[], isMaximizing: boolean): number | null => {
+    const winner = calculateWinner(squares);
+    if (winner === "X") return -1;
+    if (winner === "O") return 1;
+    if (squares.every((square) => square !== null)) return 0;
+
+    const moves: { index: number; score: number }[] = [];
+
+    for (let i = 0; i < squares.length; i++) {
+      if (squares[i] === null) {
+        const newSquares = squares.slice();
+        newSquares[i] = isMaximizing ? "O" : "X";
+        const score = getBestMove(newSquares, !isMaximizing);
+        if (score !== null && score !== undefined) {
+          moves.push({ index: i, score });
+        }
+      }
+    }
+
+    let bestMove: number | null = null;
+    if (isMaximizing) {
+      let bestScore = -Infinity;
+      for (let move of moves) {
+        if (move.score > bestScore) {
+          bestScore = move.score;
+          bestMove = move.index;
+        }
+      }
+    } else {
+      let worstScore = Infinity;
+      for (let move of moves) {
+        if (move.score < worstScore) {
+          worstScore = move.score;
+          bestMove = move.index;
+        }
+      }
+    }
+
+    return bestMove;
   };
 
   useEffect(() => {
@@ -88,7 +173,7 @@ const HomePageComponents = () => {
           console.log("GameReady event received:", e);
           setPlayerX(e.playerX);
           setPlayerO(e.playerO);
-          setCurrentPlayer(e.playerX); // Le joueur X commence le jeu
+          setCurrentPlayer(e.playerX);
           setGameStarted(true);
         });
     }
@@ -115,7 +200,7 @@ const HomePageComponents = () => {
 
         setGameCode(gameCode);
         setPlayerX(user.username);
-        setIsLocalGame(false); // Jeu en ligne
+        setIsLocalGame(false);
       }
     } catch (error) {
       console.log(error);
@@ -141,7 +226,7 @@ const HomePageComponents = () => {
         setGameCode(gameCodeJoin);
         setPlayerO(user.username);
         await setupPusher(gameCodeJoin);
-        setIsLocalGame(false); // Jeu en ligne
+        setIsLocalGame(false);
       } else {
         alert("Code de la partie invalide");
       }
@@ -199,18 +284,30 @@ const HomePageComponents = () => {
   const winner = calculateWinner(Squares);
   let status;
   if (winner) {
-    if (!isLocalGame && winner === "X") {
+    if (winner === "X") {
       status = "Winner: " + playerX;
-    } else if (!isLocalGame && winner === "O") {
-      status = "Winner: " + playerO;
     } else {
-      status = "Winner: " + winner;
+      status = "Winner: " + playerO;
     }
   } else if (Squares.every((square) => square !== null)) {
     status = "Egalité";
   } else {
-    status = "Joueur: " + (xIsNext ? "X" : "O");
+    status = "Joueur: " + (xIsNext ? playerX : playerO);
   }
+
+  const startLocalGame = () => {
+    setSquares(Array(9).fill(null));
+    setXIsNext(true);
+    setIsLocalGame(true);
+    setDifficulty(null);
+  };
+
+  const startComputerGame = (level: "easy" | "medium" | "hard") => {
+    setSquares(Array(9).fill(null));
+    setXIsNext(true);
+    setIsLocalGame(true);
+    setDifficulty(level);
+  };
 
   return (
     <div className=" flex flex-raw items-center justify-center bg-gray-100 p-5 mt-5 shadow-xl rounded-xl">
@@ -222,7 +319,7 @@ const HomePageComponents = () => {
           onClick={handleClick}
           isGameWon={false}
           isGameDraw={false}
-          gameMode={isLocalGame ? "local" : "online"}
+          gameMode={""}
         />
       </div>
       <div className="flex flex-col text-center ml-5 gap-2">
@@ -242,7 +339,7 @@ const HomePageComponents = () => {
           className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
           onClick={createGame}
         >
-          Créer une partie en ligne
+          Créer une partie
         </button>
         <button
           className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
@@ -252,13 +349,27 @@ const HomePageComponents = () => {
         </button>
         <button
           className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
-          onClick={() => {
-            setIsLocalGame(true);
-            setSquares(Array(9).fill(null)); // Reset game state for local game
-            setXIsNext(true); // Reset the first player to "X"
-          }}
+          onClick={startLocalGame}
         >
           Jouer en local
+        </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={() => startComputerGame("easy")}
+        >
+          Jouer contre l'ordinateur (Facile)
+        </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={() => startComputerGame("medium")}
+        >
+          Jouer contre l'ordinateur (Intermédiaire)
+        </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={() => startComputerGame("hard")}
+        >
+          Jouer contre l'ordinateur (Difficile)
         </button>
         {gameCode !== "" && <div>Code de la partie: {gameCode}</div>}
         {gameCanBeLaunch && (

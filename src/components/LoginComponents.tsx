@@ -1,6 +1,6 @@
 import React from "react";
 import axios from "axios";
-import { useUser } from "../context/UserContext"; // Import the useUser hook
+import { useUser } from "../context/UserContext";
 
 interface LoginProps {
   onClose: () => void;
