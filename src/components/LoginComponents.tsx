@@ -15,8 +15,6 @@ const Login: React.FC<LoginProps> = ({ onClose, onOpenRegister }) => {
   const onLogin = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
     try {
-   
-
       const response = await axios
         .post(
           process.env.REACT_APP_API_URL + "api/login",
@@ -31,6 +29,10 @@ const Login: React.FC<LoginProps> = ({ onClose, onOpenRegister }) => {
             },
           }
         )
+      if (password.length < 6) {
+        console.log("Password must be at least 6 characters long.");
+        return;
+      }
       login(response.data.user);
       localStorage.setItem("token", response.data.token);
       //await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
@@ -38,10 +40,6 @@ const Login: React.FC<LoginProps> = ({ onClose, onOpenRegister }) => {
     } catch (error) {
       console.log(error);
     }
-    
-
-    
-     
   };
 
   return (

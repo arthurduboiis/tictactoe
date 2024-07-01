@@ -16,12 +16,7 @@ const Header: React.FC<HeaderProps> = ({
  return (
     <div className="flex justify-between items-center p-4 bg-gray-800 text-white">
       <div>
-        <h1 className="text-2xl font-bold">Jeux</h1>
-        <ul className="flex space-x-4">
-          <li>Jouer en solo</li>
-          <li>Jouer en ligne</li>
-          <li>Jouer contre l'IA</li>
-        </ul>
+        <h1 className="text-2xl font-bold">Jeux Morpion</h1>
       </div>
 
       {loggedIn && (
