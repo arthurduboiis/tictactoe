@@ -28,13 +28,18 @@ const Home: React.FC = () => {
         },
       })
       .then((response) => {
+        console.log(response)
         if (response.status === 200) {
           login(response.data.user);
         }
         else {
           logout();
         }
+      }).catch((error) => {
+        console.log(error)
+        logout();
       });
+      
   }, []);
 
   const handleLoginClick = () => {
