@@ -17,26 +17,33 @@ const Register: React.FC<RegisterProps> = ({ onClose, onOpenLogin }) => {
   const onRegister = async (e: React.FormEvent<HTMLButtonElement>) => {
     if (password === password_confirmation) {
       e.preventDefault();
+
       await axios
-        .get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie")
-        .then((response) => {
-          axios
-            .post(process.env.REACT_APP_API_URL + "api/register", {
-              username: username,
+        .post(process.env.REACT_APP_API_URL + "api/register", {
+          username: username,
+          email: email,
+          password: password,
+        })
+        .then(async (res) => {
+          console.log(res.data);
+          const response = await axios.post(
+            process.env.REACT_APP_API_URL + "api/login",
+            {
               email: email,
               password: password,
-            })
-            .then((res) => {
-              console.log(res.data);
-              login(res.data.user);
-              onClose();
-            })
-            .catch((err) => {
-              console.log(err);
-            });
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+            }
+          );
+          login(response.data.user);
+          onClose();
         })
-        .catch((error) => {
-          console.log(error);
+        .catch((err) => {
+          console.log(err);
         });
     } else {
       alert("Les mots de passe ne correspondent pas");

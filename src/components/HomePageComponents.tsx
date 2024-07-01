@@ -1,21 +1,35 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import BoardComponent from "./BoardComponents";
 import FriendRequestComponents from "./FriendRequestComponents";
 import FriendListComponents from "./friends/FriendListComponents";
-import axios from 'axios';
-
+import axios from "axios";
 import Echo from "laravel-echo";
+import Pusher from "pusher-js";
+import { join } from "path";
+import { useUser } from "../context/UserContext";
+import JoinGameModal from "./JoinGameModal";
 
+declare global {
+  interface Window {
+    Echo: Echo;
+    Pusher: any;
+  }
+}
 
-
-
-function HomePageComponents() {
-  const [Squares, setSquares] = useState<(string | null)[]>(
-    Array(9).fill(null)
-  );
+const HomePageComponents = () => {
+  const [Squares, setSquares] = useState<(string | null)[]>(Array(9).fill(null));
+  const { user } = useUser();
   const [xIsNext, setXIsNext] = useState(true);
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [showFriendList, setShowFriendList] = useState(false);
+  const [gameCode, setGameCode] = useState("");
+  const [isGameModal, setIsGameModal] = useState(false);
+  const [currentPlayer, setCurrentPlayer] = useState("");
+  const [playerX, setPlayerX] = useState("");
+  const [playerO, setPlayerO] = useState("");
+  const [gameCanBeLaunch, setGameCanBeLaunch] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [isLocalGame, setIsLocalGame] = useState(true); // ajout pour le mode local
 
   const handleFriendRequestOpen = () => {
     setShowAddFriend(true);
@@ -24,63 +38,179 @@ function HomePageComponents() {
     setShowAddFriend(false);
   };
 
-
-  const handleFriendListOpen =  () => {
-   
+  const handleFriendListOpen = () => {
     setShowFriendList(true);
   };
   const handleFriendListClose = () => {
     setShowFriendList(false);
   };
 
+  const showGameModal = () => {
+    setIsGameModal(true);
+  };
+  const closeGameModal = () => {
+    setIsGameModal(false);
+  };
+
   const handleClick = (i: number) => {
-    //Fonction fait avec copilote, vérifier si elle fonctionne et voir la doc pour le Squares
+    if (!isLocalGame && (!user || !gameStarted)) return; // Vérifier si le jeu est en ligne ou local
+
     const newSquares = Squares.slice();
     if (calculateWinner(newSquares) || newSquares[i]) return;
+
     newSquares[i] = xIsNext ? "X" : "O";
     setSquares(newSquares);
     setXIsNext(!xIsNext);
+
+    if (!isLocalGame && user) {
+      axios.post(process.env.REACT_APP_API_URL + "api/make-move", {
+        gameCode: gameCode,
+        squares: newSquares,
+        xIsNext: !xIsNext,
+        currentPlayer: user.username === playerX ? playerO : playerX,
+      });
+      setCurrentPlayer(user.username === playerX ? playerO : playerX);
+    }
   };
 
-  const winner = calculateWinner(Squares); // Cette variable est à utiliser pour déterminer si le jeu est gagné
+  useEffect(() => {
+    if (window.Echo && gameCode !== "") {
+      window.Echo.channel("tictactoe." + gameCode)
+        .listen("UserJoined", (e: string) => {
+          setGameCanBeLaunch(true);
+        })
+        .listen("UserMove", (e: any) => {
+          setSquares(e.squares);
+          setXIsNext(e.xIsNext);
+          setCurrentPlayer(e.currentPlayer);
+        })
+        .listen("GameReady", (e: any) => {
+          console.log("GameReady event received:", e);
+          setPlayerX(e.playerX);
+          setPlayerO(e.playerO);
+          setCurrentPlayer(e.playerX); // Le joueur X commence le jeu
+          setGameStarted(true);
+        });
+    }
+  }, [gameCode]);
+
+  const createGame = async () => {
+    try {
+      const response = await axios.post(
+        process.env.REACT_APP_API_URL + "api/create-game",
+        {
+          user: user,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (response.status === 201 && user) {
+        const gameCode = response.data.gameCode;
+        setupPusher(gameCode);
+
+        setGameCode(gameCode);
+        setPlayerX(user.username);
+        setIsLocalGame(false); // Jeu en ligne
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const joinGame = async (gameCodeJoin: string) => {
+    try {
+      const response = await axios.post(
+        process.env.REACT_APP_API_URL + "api/join-game",
+        {
+          gameCode: gameCodeJoin,
+          user: user,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+      if (response.status === 200 && user) {
+        setGameCode(gameCodeJoin);
+        setPlayerO(user.username);
+        await setupPusher(gameCodeJoin);
+        setIsLocalGame(false); // Jeu en ligne
+      } else {
+        alert("Code de la partie invalide");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const startGame = async () => {
+    try {
+      const response = await axios.post(
+        process.env.REACT_APP_API_URL + "api/start-game",
+        {
+          gameCode: gameCode,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+      if (response.status === 200) {
+        setGameStarted(true);
+        setGameCanBeLaunch(false);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const setupPusher = async (gameCode: string) => {
+    if (!window.Echo) {
+      var pusher = new Pusher(process.env.REACT_APP_PUSHER_KEY || "", {
+        cluster: process.env.REACT_APP_PUSHER_CLUSTER || "eu",
+      });
+
+      window.Echo = new Echo({
+        broadcaster: "pusher",
+        key: process.env.REACT_APP_PUSHER_KEY,
+        cluster: process.env.REACT_APP_PUSHER_CLUSTER,
+        forceTLS: true,
+      });
+    }
+
+    window.Echo.join(`tictactoe.${gameCode}`)
+      .listen("UserJoined", (e: string) => {
+        console.log(e);
+      })
+      .listen("UserLeaved", (e: string) => {
+        console.log(e);
+      });
+  };
+
+  const winner = calculateWinner(Squares);
   let status;
   if (winner) {
-    // Cette condition sert a montrer le status du jeu
-    status = "Winner: " + winner;
+    if (!isLocalGame && winner === "X") {
+      status = "Winner: " + playerX;
+    } else if (!isLocalGame && winner === "O") {
+      status = "Winner: " + playerO;
+    } else {
+      status = "Winner: " + winner;
+    }
   } else if (Squares.every((square) => square !== null)) {
-    // Voir le Squares.every sur la doc
     status = "Egalité";
   } else {
-    status = "Joueur: " + (xIsNext ? "X" : "O"); // xIsNext est à utiliser pour déterminer quel joueur doit jouer
+    status = "Joueur: " + (xIsNext ? "X" : "O");
   }
-  // window.Echo = new Echo({
-  //   broadcaster: 'pusher',
-  //   key: process.env.MIX_PUSHER_APP_KEY,
-  //   cluster: process.env.MIX_PUSHER_APP_CLUSTER,
-  //   encrypted: true, // set to true if you're using HTTPS
-  // });
-
-  // const options = {
-  //   broadcaster: 'pusher',
-  //   key: 'ee4c708e97f16b9f37f2',
-  //   cluster: 'eu',
-  //   forceTLS: config.pusher.tls,
-  //   //authEndpoint is your apiUrl + /broadcasting/auth
-  //   authEndpoint: config.pusher.authEndpoint, 
-  //   // As I'm using JWT tokens, I need to manually set up the headers.
-  //   auth: {
-  //     headers: {
-  //       Authorization: `Bearer ${token}`,
-  //       Accept: 'application/json',
-  //     },
-  //   },
-  // };
-  
-  // const echo = new Echo(options);
-  // echo.private(`App.User.${userId}`).notification((data) => {
-  //     console.log(data);
-  // });
-
 
   return (
     <div className=" flex flex-raw items-center justify-center bg-gray-100 p-5 mt-5 shadow-xl rounded-xl">
@@ -92,7 +222,7 @@ function HomePageComponents() {
           onClick={handleClick}
           isGameWon={false}
           isGameDraw={false}
-          gameMode={""}
+          gameMode={isLocalGame ? "local" : "online"}
         />
       </div>
       <div className="flex flex-col text-center ml-5 gap-2">
@@ -108,6 +238,37 @@ function HomePageComponents() {
         >
           Liste d'amis
         </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={createGame}
+        >
+          Créer une partie en ligne
+        </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={showGameModal}
+        >
+          Rejoindre une partie
+        </button>
+        <button
+          className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+          onClick={() => {
+            setIsLocalGame(true);
+            setSquares(Array(9).fill(null)); // Reset game state for local game
+            setXIsNext(true); // Reset the first player to "X"
+          }}
+        >
+          Jouer en local
+        </button>
+        {gameCode !== "" && <div>Code de la partie: {gameCode}</div>}
+        {gameCanBeLaunch && (
+          <button
+            className="bg-black hover:bg-gray-700 text-white font-bold py-2 px-4 rounded "
+            onClick={startGame}
+          >
+            Lancer la partie
+          </button>
+        )}
       </div>
       {showAddFriend && (
         <FriendRequestComponents onClose={handleFriendRequestClose} />
@@ -115,24 +276,21 @@ function HomePageComponents() {
       {showFriendList && (
         <FriendListComponents onClose={handleFriendListClose} />
       )}
+      {isGameModal && (
+        <JoinGameModal onClose={closeGameModal} joinGame={joinGame} />
+      )}
     </div>
   );
-}
+};
 
-function calculateWinner(Squares: (string | null)[]) {
-  // Fait avec chatGPT pour calculer les coups gagnants.
-  const lines: number[][] = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
+export function calculateWinner(Squares: (string | null)[]) {
+  const lines = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
   ];
-  for (let i = 0; i < lines.length; i++) {
-    const [a, b, c] = lines[i]; //
+  for (let line of lines) {
+    const [a, b, c] = line;
     if (Squares[a] && Squares[a] === Squares[b] && Squares[a] === Squares[c]) {
       return Squares[a];
     }
@@ -141,6 +299,3 @@ function calculateWinner(Squares: (string | null)[]) {
 }
 
 export default HomePageComponents;
-
-// Changer le nom de cette page plus tard lorsque le login et register seront fait pour pouvoir afficher le login en premier lorsqu'on arrive sur le site.
-// Ca peut etre chiant de se login a chaque fois que j'actualise, attendre que les cookies ou tokens sont aussi implementer

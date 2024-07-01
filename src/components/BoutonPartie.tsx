@@ -11,12 +11,11 @@ function BoutonPartie({ gameMode }: BoutonPartieProps) {
     const isGameDraw = false;
 
     const handleClick = (i: number) => {
-        // Logique à mettre en place pour gérer le clic sur une case du morpion (voir le composant HomePage).
     };
 
     return (
         <div>
-            {/* Code pour le composant BoutonPartie */}
+            { }
             <BoardComponent
                 Squares={squares}
                 onClick={handleClick}

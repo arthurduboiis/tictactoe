@@ -12,7 +12,6 @@ const PendingFriendComponents: React.FC<PendingFriendProps> = ({ pendingFriends 
     username: string
   ) => {
     event.preventDefault();
-    await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
     axios
       .post(
         process.env.REACT_APP_API_URL + "api/accept-friend",
@@ -40,10 +39,9 @@ const PendingFriendComponents: React.FC<PendingFriendProps> = ({ pendingFriends 
     username: string
   ) => {
     event.preventDefault();
-    await axios.get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie");
     axios
       .post(
-        process.env.REACT_APP_API_URL + "api/reject-friend",
+        process.env.REACT_APP_API_URL + "reject-friend",
         {
           username: username,
         },
@@ -65,10 +63,10 @@ const PendingFriendComponents: React.FC<PendingFriendProps> = ({ pendingFriends 
 
   return (
     <div>
-     
+
 
       {pendingFriends ? pendingFriends.map((friend) => (
-        <div key={friend.id} className="flex items-start justify-center gap-2">
+        <div key={friend.userID} className="flex items-start justify-center gap-2">
           <span className="grow shrink-0">{friend.username}</span>
           <button
             type="button"
@@ -83,7 +81,7 @@ const PendingFriendComponents: React.FC<PendingFriendProps> = ({ pendingFriends 
             ❌
           </button>
         </div>
-      )): <span>Vous n'avez pas de demande d'amis</span>}
+      )) : <span>Vous n'avez pas de demande d'amis</span>}
     </div>
   );
 };

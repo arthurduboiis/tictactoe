@@ -13,7 +13,7 @@ const Header: React.FC<HeaderProps> = ({
   loggedIn,
   logout
 }) => {
- return (
+  return (
     <div className="flex justify-between items-center p-4 bg-gray-800 text-white">
       <div>
         <h1 className="text-2xl font-bold">Jeux</h1>

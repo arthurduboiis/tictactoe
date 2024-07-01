@@ -20,45 +20,31 @@ const FriendRequestComponents: React.FC<FriendRequestProps> = ({ onClose }) => {
   const [friends, setFriendList] = React.useState<User[]>([]);
 
   const getFriend = async () => {
-    await axios
-      .get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie")
-      .then(async (response) => {
-        const result = await axios.get(
-          process.env.REACT_APP_API_URL + "api/get-friend",
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-          }
-        );
+    const result = await axios.get(
+      process.env.REACT_APP_API_URL + "api/get-friend",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      }
+    );
 
-        setFriendList(result.data.friends);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+    setFriendList(result.data.friends);
   };
 
   const getPendingFriend = async () => {
-    await axios
-      .get(process.env.REACT_APP_API_URL + "sanctum/csrf-cookie")
-      .then(async (response) => {
-        const result = await axios.get(
-          process.env.REACT_APP_API_URL + "api/pending-friend",
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-          }
-        );
-        console.log(result.data.pending_friend);
-        setPendingFriendsList(result.data.pending_friend);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+    const result = await axios.get(
+      process.env.REACT_APP_API_URL + "api/pending-friend",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      }
+    );
+    console.log(result.data.pending_friend);
+    setPendingFriendsList(result.data.pending_friend);
   };
 
   React.useEffect(() => {
@@ -90,9 +76,8 @@ const FriendRequestComponents: React.FC<FriendRequestProps> = ({ onClose }) => {
             Listes d'amis
           </button>
           <button
-            className={`${
-              activeTab === Tab.PENDING_FRIENDS ? "font-bold" : ""
-            }`}
+            className={`${activeTab === Tab.PENDING_FRIENDS ? "font-bold" : ""
+              }`}
             onClick={() => handleTabChange(Tab.PENDING_FRIENDS)}
           >
             Demandes d'amis

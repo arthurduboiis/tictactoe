@@ -3,7 +3,7 @@ import React from "react";
 interface SquareProps {
     value: string | null;
     onClick: () => void;
-    isWinnerSquare: boolean; // Ajoutez cette propriété
+    isWinnerSquare: boolean;
     isDrawSquare: boolean;
 }
 
